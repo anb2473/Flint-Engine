@@ -5,7 +5,7 @@
 #include <ctype.h> 
 #include "../utils/utarray.h"
 
-// Go through every object in the db.idx file, and store its location for future lookup
+// Go through every schema in the schema.flint file and every object in the db.idx file, and store their data for future use
 // Whenever a request for an object is made, load its contents from its location and then add it to the FILO cache
 
 typedef struct {
@@ -204,6 +204,28 @@ UT_icd table_structure_icd = {
     table_structure_dtor
 };
 
+void ensure_inner_array_size(UT_array* inner_array, size_t pos) {
+    size_t len = utarray_len(inner_array);
+    if (pos < len) return;  // already big enough
+
+    size_t new_len = len == 0 ? 64 : len;
+    while (new_len <= pos) {
+        new_len *= 2;  // double size each time until big enough
+    }
+
+    uint32_t default_val = UINT32_MAX;
+
+    // Grow in one go:
+    for (size_t i = len; i < new_len; i++) {
+        utarray_push_back(inner_array, &default_val);
+    }
+}
+
+void set_inner_array_value(UT_array* inner_array, size_t pos, uint32_t value) {
+    ensure_inner_array_size(inner_array, pos);
+    uint32_t* ptr = (uint32_t*)utarray_eltptr(inner_array, pos);
+    *ptr = value;
+}
 
 int index_db(const char* db_path) {
     // Scan the schema.flint file and extract all schema information
@@ -213,7 +235,7 @@ int index_db(const char* db_path) {
     // This means that finding an object table by id is an O(1) operation,
     // finding an object by id is an O(1) operation,
     // adding a new object is an O(1) operation,
-    // when we want to remove an id, we set the location at that index to -1, marking it as deleted,
+    // when we want to remove an id, we set the location at that index to UINT32_MAX, marking it as deleted,
     // and then we add that id to a registry of available ids for reuse when we need to add a new object
     // We also have a seperate check program which can be run and makes sure that all 
     // empty id's are marked and the system is running nominally
@@ -256,6 +278,8 @@ int index_db(const char* db_path) {
     char* property = "";
 
     Attribute* current_attribute = NULL; // Pointer to the current attribute being processed
+
+    uint32_t schema_table_array_len = 0;
 
     while ((read_byte_as_int = fgetc(schema_file)) != EOF) {    // Read until end of file
         // Cast the int result from fgetc to unsigned char for processing the byte value
@@ -304,6 +328,7 @@ int index_db(const char* db_path) {
                     utarray_push_back(current_attribute->properties, prop_attr);
                     free(prop_attr);  // Because utarray copies by value  
                     utarray_push_back(schema_table_array, table_structure);    // Add the table structure to the outer array
+                    schema_table_array_len += 1;
                     state = OUTSIDE_STRUCTURE; // Transition to outside structure
                     continue;
                 }
@@ -329,6 +354,7 @@ int index_db(const char* db_path) {
                     utarray_push_back(current_attribute->properties, prop_attr);
                     free(prop_attr);  // Because utarray copies by value  
                     utarray_push_back(schema_table_array, table_structure);    // Add the table structure to the outer array
+                    schema_table_array_len += 1;
                     state = OUTSIDE_STRUCTURE; // Transition to outside structure
                     continue;
                 }
@@ -359,14 +385,31 @@ int index_db(const char* db_path) {
         return 1;
     }
 
+    // Output format:
+    // UT_ARRAY [
+    //    UT_ARRAY [
+    //      int location_1,
+    //      int location_2,
+    //    ]
+    // ]
+
     UT_array *index_table_array;
 
     utarray_new(index_table_array, &outer_utarray_icd);
+    for (int i = 0; i < schema_table_array_len; i++) {
+        UT_array* inner_array;
+        utarray_new(inner_array, &uint32_icd);
 
-    uint32_t index_table_array_len = 0; // Number of id indexes in the table array
+        utarray_push_back(index_table_array, &inner_array);
+    }
+
+    uint32_t object_loc = 0;
 
     while (fread(&buffer, sizeof(IndexEntry), 1, idx_file) == 1) {  // Read every index entry in the file
-        
+        UT_array* objects_array = *(UT_array**)utarray_eltptr(index_table_array, buffer.table_id);
+
+        set_inner_array_value(objects_array, buffer.object_id, object_loc);
+        object_loc += buffer.size; // Increment the object location by the size of the object
     }
     
     return 0;
