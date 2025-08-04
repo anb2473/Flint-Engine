@@ -102,5 +102,8 @@ int mk_table(const char* db_path, DBIndex* db_index, char* table_name, UT_array*
     fprintf(schema_file, 
         strcat(
             "%s {\n", attribute_str,"}\n", table_structure->name
-        )); // Write the table name to the schema file
+        )
+    ); // Write the table name to the schema file
+
+    return 0;
 }

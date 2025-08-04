@@ -381,12 +381,11 @@ DBIndex index_db(const char* db_path) {
     }
 
     // Each entry in the db.obj has an id and structure
-    // 1\x01sHello World\x02i0\x01
+    // Hello World\x020
     // Which translates to:
-    // id 1 {
-    //    str "Hello World",
-    //    int 0
-    // }
+    // str "Hello World",
+    // int 0
+    // Types are derived from the schema
 
     IndexEntry buffer;
 
