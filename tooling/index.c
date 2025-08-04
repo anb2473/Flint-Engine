@@ -227,7 +227,19 @@ void set_inner_array_value(UT_array* inner_array, size_t pos, uint32_t value) {
     *ptr = value;
 }
 
-int index_db(const char* db_path) {
+typedef struct {
+    UT_array* schema_table_array;
+    UT_array* index_table_array;
+} DBIndex;
+
+DBIndex make_db_index(UT_array* schema_table_array, UT_array* index_table_array) {
+    DBIndex result;
+    result.schema_table_array = schema_table_array;
+    result.index_table_array = index_table_array;
+    return result;
+}
+
+DBIndex index_db(const char* db_path) {
     // Scan the schema.flint file and extract all schema information
     // use the number of tables in the schema to create a utarray of each table 
     // to a utarray of objects inside the table
@@ -364,7 +376,8 @@ int index_db(const char* db_path) {
 
     if (schema_file == NULL) {
         perror("Error opening schema.flint file");
-        return 1;
+        DBIndex error_result = {NULL, NULL};
+        return error_result;
     }
 
     // Each entry in the db.obj has an id and structure
@@ -382,7 +395,8 @@ int index_db(const char* db_path) {
 
     if (idx_file == NULL) {
         perror("Error opening db.idx file");
-        return 1;
+        DBIndex error_result = {NULL, NULL};
+        return error_result;
     }
 
     // Output format:
@@ -412,5 +426,5 @@ int index_db(const char* db_path) {
         object_loc += buffer.size; // Increment the object location by the size of the object
     }
     
-    return 0;
+    return make_db_index(schema_table_array, index_table_array);
 }
