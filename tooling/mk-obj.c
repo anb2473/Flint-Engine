@@ -59,6 +59,11 @@ typedef struct {
     uint16_t size; // The size of the object in bytes (maximum 65,535 bytes in a single object)
 } IndexEntry;
 
+typedef struct {
+    uint32_t obj_loc;
+    uint32_t idx_loc;
+} IndexArrayEntry;
+
 int mk_obj(const char* db_path, DBIndex* db_index, uint32_t structure_id, HashItem* data) {
     // Data will be given as a hashmap
     // Data must be stored as an array
@@ -96,6 +101,11 @@ int mk_obj(const char* db_path, DBIndex* db_index, uint32_t structure_id, HashIt
 
     FILE* obj_file = fopen(strcat(db_path, "/db/db.obj"), "ab");
     fprintf(obj_data, obj_file);
+    
+    // Get file length
+    fseek(obj_file, 0, SEEK_END); // Move file pointer to the end
+    long obj_file_len = ftell(obj_file);  // Get current position (which is the size)
+
     fclose(obj_file);
     free(obj_file);
     
@@ -113,6 +123,14 @@ int mk_obj(const char* db_path, DBIndex* db_index, uint32_t structure_id, HashIt
     fprintf(&entry, sizeof(IndexEntry), 1, idx_file);
     fclose(idx_file);
     free(idx_file);
+
+    // Create new object in array
+    UT_array* structure_obj_array = (UT_array*) utarray_eltptr(db_index->index_table_array, structure_id);
+    IndexArrayEntry array_entry = {
+        .obj_loc = obj_file_len,
+        .idx_loc = new_object_id
+    };
+    utarray_push_back(structure_obj_array, &array_entry);
 
     return 0;
 }

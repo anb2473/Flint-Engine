@@ -16,7 +16,13 @@ typedef struct {
 
 // define the datatype for the inner utarray (uint32)
 // No special init, copy, or dtor functions are needed for scalar types like uint32_t.
-static UT_icd uint32_icd = {sizeof(uint32_t), NULL, NULL, NULL};
+// Define the UT_icd for IndexArrayEntry for use in inner UT_arrays
+static UT_icd index_array_entry_icd = {
+    sizeof(IndexArrayEntry), // Size of each element
+    NULL,                    // No special init
+    NULL,                    // No special copy
+    NULL                     // No special destructor
+};
 
 // Function to initialize a new slot in the outer array.
 // It sets the UT_array* pointer to NULL.
@@ -204,6 +210,11 @@ UT_icd table_structure_icd = {
     table_structure_dtor
 };
 
+typedef struct {
+    uint32_t obj_loc;
+    uint32_t idx_loc;
+} IndexArrayEntry;
+
 void ensure_inner_array_size(UT_array* inner_array, size_t pos) {
     size_t len = utarray_len(inner_array);
     if (pos < len) return;  // already big enough
@@ -221,10 +232,13 @@ void ensure_inner_array_size(UT_array* inner_array, size_t pos) {
     }
 }
 
-void set_inner_array_value(UT_array* inner_array, size_t pos, uint32_t value) {
+void set_inner_array_value(UT_array* inner_array, size_t pos, uint32_t obj_loc, uint32_t idx_loc) {
     ensure_inner_array_size(inner_array, pos);
-    uint32_t* ptr = (uint32_t*)utarray_eltptr(inner_array, pos);
-    *ptr = value;
+    IndexArrayEntry* ptr = (IndexArrayEntry*)utarray_eltptr(inner_array, pos);
+    *ptr = (IndexArrayEntry){
+        .obj_loc = obj_loc,
+        .idx_loc = idx_loc
+    };
 }
 
 typedef struct {
@@ -411,18 +425,22 @@ DBIndex index_db(const char* db_path) {
     utarray_new(index_table_array, &outer_utarray_icd);
     for (int i = 0; i < schema_table_array_len; i++) {
         UT_array* inner_array;
-        utarray_new(inner_array, &uint32_icd);
+        utarray_new(inner_array, &index_array_entry_icd);
 
         utarray_push_back(index_table_array, &inner_array);
     }
 
     uint32_t object_loc = 0;
 
+    int i = 0;
+
     while (fread(&buffer, sizeof(IndexEntry), 1, idx_file) == 1) {  // Read every index entry in the file
         UT_array* objects_array = *(UT_array**)utarray_eltptr(index_table_array, buffer.table_id);
 
-        set_inner_array_value(objects_array, buffer.object_id, object_loc);
+        set_inner_array_value(objects_array, buffer.object_id, object_loc, i);
         object_loc += buffer.size; // Increment the object location by the size of the object
+
+        i = i++;
     }
     
     return make_db_index(schema_table_array, index_table_array);
