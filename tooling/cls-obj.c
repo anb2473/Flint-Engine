@@ -22,4 +22,6 @@ int cls_obj(char* db_path) {
     }
 
     fclose(obj_file);
+
+    return 0;
 }
