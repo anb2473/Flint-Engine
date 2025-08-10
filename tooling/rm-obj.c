@@ -61,6 +61,11 @@ int remove_index_entry(const char* db_path, uint32_t idx_location) {
     return 0;
 }
 
+typedef struct {
+    uint32_t obj_id;
+    uint32_t obj_format_id;
+} ObjLocation;
+
 int rm_obj(char* db_path, DBIndex db_index, int obj_id, int obj_format_id) {
     UT_array* index_table_array = db_index.index_table_array;
     UT_array* table_obj_array = (UT_array*) utarray_eltptr(index_table_array, obj_format_id);
@@ -73,6 +78,11 @@ int rm_obj(char* db_path, DBIndex db_index, int obj_id, int obj_format_id) {
     uint32_t obj_location = entry->obj_loc;
     uint32_t idx_location = entry->idx_loc;
     uint32_t next_obj_location = next_entry->obj_loc;
+    ObjLocation loc = {
+        .obj_id = obj_id,
+        .obj_format_id = obj_format_id
+    };
+    utarray_push_back(db_index.empty_indexes, &loc);
 
     FILE* temp_file = fopen(strcat(db_path, "/db/temp.obj"), "wb");
 

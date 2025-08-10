@@ -247,11 +247,23 @@ typedef struct {
     UT_array* empty_indexes;
 } DBIndex;
 
+typedef struct {
+    uint32_t obj_id;
+    uint32_t obj_format_id;
+} ObjLocation;
+
+UT_icd ObjLocation_icd = {
+    sizeof(ObjLocation), // size of each element
+    NULL,                 // init   (no special init needed)
+    NULL,                 // copy   (bitwise copy is fine)
+    NULL                  // dtor   (no special cleanup needed)
+};
+
 DBIndex make_db_index(UT_array* schema_table_array, UT_array* index_table_array) {
     DBIndex result;
     result.schema_table_array = schema_table_array;
     result.index_table_array = index_table_array;
-    utarray_new(result.empty_indexes, &ut_int_icd);
+    utarray_new(result.empty_indexes, &ObjLocation_icd);
     return result;
 }
 
@@ -443,7 +455,7 @@ DBIndex index_db(const char* db_path) {
         uint32_t id;
         if (utarray_len(objects_array) == 0) {
             utarray_push_back(objects_array, 0);
-            id = 0;
+            id = 1; // Skip max filled slot
         }
         else {
             uint32_t* id_ptr = utarray_eltptr(objects_array, 0);
