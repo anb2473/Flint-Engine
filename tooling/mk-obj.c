@@ -65,6 +65,11 @@ typedef struct {
     uint32_t idx_loc;
 } IndexArrayEntry;
 
+typedef struct {
+    uint32_t obj_id;
+    uint32_t obj_format_id;
+} ObjLocation;
+
 int mk_obj(const char* db_path, DBIndex* db_index, uint32_t structure_id, HashItem* data) {
     // Data will be given as a hashmap
     // Data must be stored as an array
@@ -164,5 +169,23 @@ int mk_obj(const char* db_path, DBIndex* db_index, uint32_t structure_id, HashIt
         empty_index_slot = &array_entry;
         
         return 0;
+    }
+    // Empty index in empty indexes
+    size_t num_of_empty_indexes = utarray_len(db_index->empty_indexes);
+    if (num_of_empty_indexes > 0) {
+        ObjLocation* empty_slot_location_ptr = (ObjLocation*) utarray_eltptr(db_index->empty_indexes, num_of_empty_indexes - 1);
+        ObjLocation empty_slot_location = *empty_slot_location_ptr;
+        utarray_pop_back(db_index->empty_indexes);
+
+        UT_array* structure_array = utarray_eltptr(db_index->index_table_array, empty_slot_location.obj_format_id);
+
+        uint32_t* empty_index_slot = (uint32_t*) utarray_eltptr(structure_array, empty_slot_location.obj_id);
+
+         // Create new object in array
+        IndexArrayEntry array_entry = {
+            .obj_loc = obj_file_len,
+            .idx_loc = new_object_id
+        };
+        empty_index_slot = &array_entry;
     }
 }
