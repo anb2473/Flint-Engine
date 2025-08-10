@@ -244,12 +244,14 @@ void set_inner_array_value(UT_array* inner_array, size_t pos, uint32_t obj_loc, 
 typedef struct {
     UT_array* schema_table_array;
     UT_array* index_table_array;
+    UT_array* empty_indexes;
 } DBIndex;
 
 DBIndex make_db_index(UT_array* schema_table_array, UT_array* index_table_array) {
     DBIndex result;
     result.schema_table_array = schema_table_array;
     result.index_table_array = index_table_array;
+    utarray_new(result.empty_indexes, &ut_int_icd);
     return result;
 }
 
@@ -432,15 +434,25 @@ DBIndex index_db(const char* db_path) {
 
     uint32_t object_loc = 0;
 
-    int i = 0;
-
     while (fread(&buffer, sizeof(IndexEntry), 1, idx_file) == 1) {  // Read every index entry in the file
         UT_array* objects_array = *(UT_array**)utarray_eltptr(index_table_array, buffer.table_id);
 
-        set_inner_array_value(objects_array, buffer.object_id, object_loc, i);
-        object_loc += buffer.size; // Increment the object location by the size of the object
+        // If this is the first item we are pushing to the array, we need to first create the max filled id counter in the array
+        // which will be slot 1
 
-        i = i++;
+        uint32_t id;
+        if (utarray_len(objects_array) == 0) {
+            utarray_push_back(objects_array, 0);
+            id = 0;
+        }
+        else {
+            uint32_t* id_ptr = utarray_eltptr(objects_array, 0);
+            id_ptr = id_ptr++;
+            id = *id_ptr;
+        }
+
+        set_inner_array_value(objects_array, buffer.object_id, object_loc, id);
+        object_loc += buffer.size; // Increment the object location by the size of the object
     }
     
     return make_db_index(schema_table_array, index_table_array);

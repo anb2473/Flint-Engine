@@ -2,12 +2,14 @@
 
 #include <stdio.h>
 #include "../utils/utarray.h"
+#include <stdint.h>
 
 // Clear the idx and obj files, removing all objects
 
 typedef struct {
     UT_array* schema_table_array;
     UT_array* index_table_array;
+    UT_array* empty_indexes;
 } DBIndex;
 
 // Function to initialize a new slot in the outer array.

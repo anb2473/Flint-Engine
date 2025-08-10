@@ -2,12 +2,14 @@
 
 #include <stdio.h>
 #include "../utils/utarray.h"
+#include <stdint.h>
 
 // Clear the schema file, removing all tables
 
 typedef struct {
     UT_array* schema_table_array;
     UT_array* index_table_array;
+    UT_array* empty_indexes;
 } DBIndex;
 
 typedef struct {

@@ -1,3 +1,9 @@
+For each structure array in the indexing array we also need to store a seperate ID counter, store at front of the array,
+
+Change the empty slot utarray so it uses a custom struct icd containibg the object id and structure id
+
+In mk-obj we need to move the IO handles outside the slot managenent, as the slot management is runtime only. Also, we need to make sure we arent just finding an object by id, but also by structure id
+
 In rm-obj we still need to: remove the object from the idx file, clear its data in the index array, and add it to a deleted ids list
 
 Check proper Attributetype icd handling, free function unused

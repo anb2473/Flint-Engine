@@ -33,6 +33,7 @@ typedef enum {
 typedef struct {
     UT_array* schema_table_array;
     UT_array* index_table_array;
+    UT_array* empty_indexes;
 } DBIndex;
 
 char* attr_type_to_str(AttributeType type) {
@@ -124,13 +125,44 @@ int mk_obj(const char* db_path, DBIndex* db_index, uint32_t structure_id, HashIt
     fclose(idx_file);
     free(idx_file);
 
-    // Create new object in array
     UT_array* structure_obj_array = (UT_array*) utarray_eltptr(db_index->index_table_array, structure_id);
-    IndexArrayEntry array_entry = {
-        .obj_loc = obj_file_len,
-        .idx_loc = new_object_id
-    };
-    utarray_push_back(structure_obj_array, &array_entry);
 
-    return 0;
+    uint32_t* max_filled_ptr = (uint32_t*) utarray_eltptr(structure_obj_array, 0);
+    uint32_t max_filled;
+    if (max_filled_ptr >= utarray_len(structure_obj_array) || max_filled_ptr == UINT32_MAX) {
+        max_filled_ptr = UINT32_MAX;
+        max_filled = UINT32_MAX;
+    }
+    else {
+        max_filled_ptr = max_filled_ptr++;  // Increment max filled
+        max_filled = *max_filled_ptr;
+    }
+
+    if (utarray_len(db_index->empty_indexes) == 0 && max_filled == UINT32_MAX) {
+        // Create new object in array
+        IndexArrayEntry array_entry = {
+            .obj_loc = obj_file_len,
+            .idx_loc = new_object_id
+        };
+        utarray_push_back(structure_obj_array, &array_entry);
+
+        return 0;
+    }
+    if (max_filled != UINT32_MAX) {
+        uint32_t* empty_index_slot = (uint32_t*) utarray_eltptr(structure_obj_array, max_filled);
+
+        if (empty_index_slot != UINT32_MAX) {
+            perror("Index marked empty contains uncleared data");
+            return 1;
+        }
+
+         // Create new object in array
+        IndexArrayEntry array_entry = {
+            .obj_loc = obj_file_len,
+            .idx_loc = new_object_id
+        };
+        empty_index_slot = &array_entry;
+        
+        return 0;
+    }
 }

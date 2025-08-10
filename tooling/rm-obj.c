@@ -7,6 +7,7 @@
 typedef struct {
     UT_array* schema_table_array;
     UT_array* index_table_array;
+    UT_array* empty_indexes;
 } DBIndex;
 
 typedef struct {
