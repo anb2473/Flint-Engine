@@ -1,5 +1,7 @@
 // Remove an object
 
+#include <stdlib.h>
+#include <string.h>
 #include "../utils/utarray.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -14,6 +16,20 @@ typedef struct {
     uint32_t obj_loc;
     uint32_t idx_loc;
 } IndexArrayEntry;
+
+// New struct to handle mixed data types in the inner arrays
+typedef struct {
+    uint32_t reserved_int;  // Reserved integer at index 0
+    UT_array* objects;      // Array of IndexArrayEntry objects
+} StructureObjectsArray;
+
+// UT_icd for IndexArrayEntry
+static UT_icd index_array_entry_icd = {
+    sizeof(IndexArrayEntry), // Size of each element
+    NULL,                    // No special init
+    NULL,                    // No special copy
+    NULL                     // No special destructor
+};
 
 typedef struct {
     uint32_t object_id;
@@ -68,13 +84,21 @@ typedef struct {
 
 int rm_obj(char* db_path, DBIndex db_index, int obj_id, int obj_format_id) {
     UT_array* index_table_array = db_index.index_table_array;
-    UT_array* table_obj_array = (UT_array*) utarray_eltptr(index_table_array, obj_format_id);
-    IndexArrayEntry* entry = (IndexArrayEntry*) utarray_eltptr(table_obj_array, obj_id);
-    IndexArrayEntry* next_entry = (IndexArrayEntry*) utarray_eltptr(table_obj_array, obj_id + 1);
+    StructureObjectsArray* soa = (StructureObjectsArray*)utarray_eltptr(index_table_array, obj_format_id);
+    
+    if (!soa || !soa->objects) {
+        fprintf(stderr, "Invalid object id or format id\n");
+        return 1;
+    }
+    
+    IndexArrayEntry* entry = (IndexArrayEntry*)utarray_eltptr(soa->objects, obj_id);
+    IndexArrayEntry* next_entry = (IndexArrayEntry*)utarray_eltptr(soa->objects, obj_id + 1);
+    
     if (!entry) {
         fprintf(stderr, "Invalid object id or format id\n");
         return 1;
     }
+    
     if (!next_entry) {  // Entry is the last in the file, no next entry
         uint32_t obj_location = entry->obj_loc;
         uint32_t idx_location = entry->idx_loc;
@@ -119,10 +143,11 @@ int rm_obj(char* db_path, DBIndex db_index, int obj_id, int obj_format_id) {
         // Replace the original file with the modified temporary file
         if (remove(filename) != 0) {
             perror("Error deleting original file");
-            return;
+            return 1;
         }
         if (rename("temp.txt", filename) != 0) {
             perror("Error renaming temporary file");
+            return 1;
         }
 
         remove_index_entry(db_path, idx_location);
@@ -179,10 +204,11 @@ int rm_obj(char* db_path, DBIndex db_index, int obj_id, int obj_format_id) {
     // Replace the original file with the modified temporary file
     if (remove(filename) != 0) {
         perror("Error deleting original file");
-        return;
+        return 1;
     }
     if (rename("temp.txt", filename) != 0) {
         perror("Error renaming temporary file");
+        return 1;
     }
 
     remove_index_entry(db_path, idx_location);

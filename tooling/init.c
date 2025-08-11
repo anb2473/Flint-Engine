@@ -1,6 +1,7 @@
 // Initiate the database
 
 #include <stdio.h>
+#include <string.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -20,7 +21,7 @@ int mk_dir(const char* path) {
             return 1;
         }
     #else
-        if (mkdir(db_path, 0755) == 0 || errno == EEXIST) {
+        if (mkdir(path, 0755) == 0 || errno == EEXIST) {
             return 0;
         } else {
             perror("mkdir");

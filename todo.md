@@ -4,11 +4,7 @@ Check proper Attributetype icd handling, free function unused
 
 Rename outer and inner icd variables to make sense, and extract variables in code cleanup
 
-We need to make sure to account for if the object is the last pobject in the rm-obj tooling. If the object is last there will not be a next obj, so if the next obj is NULL we can say the object is last
-
 Optimization in the indexing script, in the set_inner_array foo we unecissarily reload the inner array every buffer, optimize for performance, avoid memory conflict
-
-In mk-obj check deleted ids to fill up before adding new object to a new slot / Write all deleted ids to be filled up in a free list so they can be popped off in mk-obj in FILO order
 
 You should be able to set up a system which, if the free list gets too long, it triggers a automatic system to resize the array to clear out any unused slots (this is an innefficient task, which is why it makes sense to only do it sparsely)
 

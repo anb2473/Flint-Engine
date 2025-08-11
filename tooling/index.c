@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <ctype.h> 
 #include "../utils/utarray.h"
+#include "../utils/uthash.h"
 
 // Go through every schema in the schema.flint file and every object in the db.idx file, and store their data for future use
 // Whenever a request for an object is made, load its contents from its location and then add it to the FILO cache
@@ -42,7 +43,7 @@ static void inner_utarray_ptr_dtor(void *elt) {
 }
 
 // The UT_icd for the outer array. Its elements are UT_array* (pointers).
-static UT_icd outer_utarray_icd = {
+static UT_icd structure_utarry_icd = {
     sizeof(UT_array*),      // Size of each element is the size of a pointer to UT_array
     inner_utarray_ptr_init, // Custom init function
     NULL,                   // Default copy (bitwise copy of pointer) is okay if not deep copying
@@ -215,31 +216,11 @@ typedef struct {
     uint32_t idx_loc;
 } IndexArrayEntry;
 
-void ensure_inner_array_size(UT_array* inner_array, size_t pos) {
-    size_t len = utarray_len(inner_array);
-    if (pos < len) return;  // already big enough
-
-    size_t new_len = len == 0 ? 64 : len;
-    while (new_len <= pos) {
-        new_len *= 2;  // double size each time until big enough
-    }
-
-    uint32_t default_val = UINT32_MAX;
-
-    // Grow in one go:
-    for (size_t i = len; i < new_len; i++) {
-        utarray_push_back(inner_array, &default_val);
-    }
-}
-
-void set_inner_array_value(UT_array* inner_array, size_t pos, uint32_t obj_loc, uint32_t idx_loc) {
-    ensure_inner_array_size(inner_array, pos);
-    IndexArrayEntry* ptr = (IndexArrayEntry*)utarray_eltptr(inner_array, pos);
-    *ptr = (IndexArrayEntry){
-        .obj_loc = obj_loc,
-        .idx_loc = idx_loc
-    };
-}
+// New struct to handle mixed data types in the inner arrays
+typedef struct {
+    uint32_t reserved_int;  // Reserved integer at index 0
+    UT_array* objects;      // Array of IndexArrayEntry objects
+} StructureObjectsArray;
 
 typedef struct {
     UT_array* schema_table_array;
@@ -251,6 +232,75 @@ typedef struct {
     uint32_t obj_id;
     uint32_t obj_format_id;
 } ObjLocation;
+
+typedef enum {
+    TYPE_INT,
+    TYPE_MAP,
+} LocOrDataType;
+
+typedef struct {
+    char* name;                 // key
+    char* data;
+    UT_hash_handle hh;      // makes this hashable
+} Data;
+
+typedef struct {
+    LocOrDataType type;
+    union {
+        int i;
+        Data *map;
+    };
+} LocOrData;
+
+static void loc_or_data_init(void *elt) {
+    LocOrData *lod = (LocOrData *)elt;
+    lod->type = TYPE_INT;
+    lod->i = 0;
+    lod->map = NULL; // union member
+}
+
+// Deep copy element
+static void loc_or_data_copy(void *dst, const void *src) {
+    const LocOrData *s = (const LocOrData *)src;
+    LocOrData *d = (LocOrData *)dst;
+
+    d->type = s->type;
+    if (s->type == TYPE_INT) {
+        d->i = s->i;
+    } else if (s->type == TYPE_MAP) {
+        d->map = NULL;
+        Data *curr, *tmp;
+        HASH_ITER(hh, s->map, curr, tmp) {
+            Data *new_entry = malloc(sizeof(*new_entry));
+            new_entry->name = strdup(curr->name);
+            new_entry->data = strdup(curr->data);
+            HASH_ADD_KEYPTR(hh, d->map, new_entry->name, strlen(new_entry->name), new_entry);
+        }
+    }
+}
+
+// Destroy element
+static void loc_or_data_dtor(void *elt) {
+    LocOrData *lod = (LocOrData *)elt;
+    if (lod->type == TYPE_MAP) {
+        Data *curr, *tmp;
+        HASH_ITER(hh, lod->map, curr, tmp) {
+            HASH_DEL(lod->map, curr);
+            free(curr->name);
+            free(curr->data);
+            free(curr);
+        }
+        lod->map = NULL;
+    }
+}
+
+/* --- The UT_icd definition --- */
+UT_icd loc_or_data_icd = {
+    sizeof(LocOrData),
+    loc_or_data_init,
+    loc_or_data_copy,
+    loc_or_data_dtor
+};
 
 UT_icd ObjLocation_icd = {
     sizeof(ObjLocation), // size of each element
@@ -428,44 +478,102 @@ DBIndex index_db(const char* db_path) {
 
     // Output format:
     // UT_ARRAY [
-    //    UT_ARRAY [
-    //      int location_1,
-    //      int location_2,
+    //    StructureObjectsArray [
+    //      reserved_int,
+    //      UT_ARRAY [
+    //        IndexArrayEntry { location_1, idx_1 },
+    //        IndexArrayEntry { location_2, idx_2 },
+    //      ]
     //    ]
     // ]
 
     UT_array *index_table_array;
 
-    utarray_new(index_table_array, &outer_utarray_icd);
+    utarray_new(index_table_array, &structure_objects_array_icd);
     for (int i = 0; i < schema_table_array_len; i++) {
-        UT_array* inner_array;
-        utarray_new(inner_array, &index_array_entry_icd);
-
-        utarray_push_back(index_table_array, &inner_array);
+        StructureObjectsArray soa;
+        soa.reserved_int = 0;  // Initialize reserved integer
+        utarray_new(soa.objects, &index_array_entry_icd);  // Create array for IndexArrayEntry objects
+        
+        utarray_push_back(index_table_array, &soa);
     }
 
     uint32_t object_loc = 0;
 
+    uint32_t idx_loc = 0;
+
     while (fread(&buffer, sizeof(IndexEntry), 1, idx_file) == 1) {  // Read every index entry in the file
-        UT_array* objects_array = *(UT_array**)utarray_eltptr(index_table_array, buffer.table_id);
-
-        // If this is the first item we are pushing to the array, we need to first create the max filled id counter in the array
-        // which will be slot 1
-
-        uint32_t id;
-        if (utarray_len(objects_array) == 0) {
-            utarray_push_back(objects_array, 0);
-            id = 1; // Skip max filled slot
+        StructureObjectsArray* soa = (StructureObjectsArray*)utarray_eltptr(index_table_array, buffer.table_id);
+        
+        if (!soa) {
+            // Create a new StructureObjectsArray if it doesn't exist
+            StructureObjectsArray new_soa;
+            new_soa.reserved_int = 0;
+            utarray_new(new_soa.objects, &index_array_entry_icd);
+            
+            // Ensure the outer array is big enough
+            while (utarray_len(index_table_array) <= buffer.table_id) {
+                StructureObjectsArray empty_soa;
+                empty_soa.reserved_int = 0;
+                utarray_new(empty_soa.objects, &index_array_entry_icd);
+                utarray_push_back(index_table_array, &empty_soa);
+            }
+            
+            soa = (StructureObjectsArray*)utarray_eltptr(index_table_array, buffer.table_id);
         }
-        else {
-            uint32_t* id_ptr = utarray_eltptr(objects_array, 0);
-            id_ptr = id_ptr++;
-            id = *id_ptr;
+
+        // Ensure the objects array is big enough for the object_id
+        size_t required_size = buffer.object_id + 1;
+        size_t current_size = utarray_len(soa->objects);
+        
+        if (required_size > current_size) {
+            // Expand array with UINT32_MAX empty slots
+            size_t new_size = current_size == 0 ? 64 : current_size;
+            while (new_size <= buffer.object_id) {
+                new_size *= 2;  // double size each time until big enough
+            }
+            
+            // Add empty slots with UINT32_MAX values
+            IndexArrayEntry empty_entry = {UINT32_MAX, UINT32_MAX};
+            for (size_t i = current_size; i < new_size; i++) {
+                utarray_push_back(soa->objects, &empty_entry);
+            }
         }
 
-        set_inner_array_value(objects_array, buffer.object_id, object_loc, id);
+        // Get the reserved integer from the StructureObjectsArray
+        uint32_t id = soa->reserved_int;
+
+        // Set the object at the specific object_id position
+        IndexArrayEntry* entry_ptr = (IndexArrayEntry*)utarray_eltptr(soa->objects, buffer.object_id);
+        if (entry_ptr) {
+            entry_ptr->obj_loc = object_loc;
+            entry_ptr->idx_loc = idx_loc;
+        }
+
+        // Increment the reserved integer for next object
+        soa->reserved_int++;
+        
         object_loc += buffer.size; // Increment the object location by the size of the object
+
+        idx_loc++;
     }
     
     return make_db_index(schema_table_array, index_table_array);
 }
+
+// Custom destructor for StructureObjectsArray
+void structure_objects_array_dtor(void* elt) {
+    StructureObjectsArray* soa = (StructureObjectsArray*)elt;
+    if (soa->objects) {
+        utarray_free(soa->objects);
+        soa->objects = NULL;
+    }
+}
+
+// UT_icd for StructureObjectsArray
+UT_icd structure_objects_array_icd = {
+    sizeof(StructureObjectsArray),
+    NULL,  // No special init needed
+    NULL,  // Default copy is fine
+    structure_objects_array_dtor
+};
