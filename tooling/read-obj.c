@@ -20,7 +20,7 @@ typedef struct {
 } StructureObjectsArray;
 
 typedef enum {
-    TYPE_INT,
+    TYPE_LOC,
     TYPE_MAP,
 } LocOrDataType;
 
@@ -45,7 +45,7 @@ typedef struct {
 } DBIndex;
 
 // TODO: Implement read_obj function
-int read_obj(const char* db_path, DBIndex* db_index, uint32_t obj_id, uint32_t table_id) {
+Data* read_obj(const char* db_path, DBIndex* db_index, uint32_t obj_id, uint32_t table_id) {
     StructureObjectsArray* soa = (StructureObjectsArray*)utarray_eltptr(db_index->index_table_array, table_id);
 
     if (!soa) {
@@ -53,35 +53,42 @@ int read_obj(const char* db_path, DBIndex* db_index, uint32_t obj_id, uint32_t t
         return 1;
     }
 
-    IndexArrayEntry* entry = (IndexArrayEntry*)utarray_eltptr(soa->objects, obj_id);
+    LocOrData* entry = (LocOrData*)utarray_eltptr(soa->objects, obj_id);
 
     if (!entry) {
         perror("Object not found");
         return 1;
     }
 
-    if (entry->obj_loc == UINT32_MAX) {
-        perror("Object has been deleted");
-        return 1;
-    }
-
-    // Open the object file and read the data at the specified location
-    FILE* obj_file = fopen(strcat(db_path, "/db/db.obj"), "rb");
-    if (!obj_file) {
-        perror("Failed to open object file");
-        return 1;
-    }
-
-    // Seek to the object location
-    if (fseek(obj_file, entry->obj_loc, SEEK_SET) != 0) {
-        perror("Failed to seek to object location");
-        fclose(obj_file);
-        return 1;
-    }
-
-    // TODO: Read and parse the object data based on the schema
-    // This would involve reading the binary data and converting it to the appropriate format
+    if (entry->type == TYPE_LOC) {
+        IndexArrayEntry* entry_loc = entry->idx_entry;
+        if (entry_loc->obj_loc == UINT32_MAX && entry_loc->idx_loc == UINT32_MAX) {
+            perror("Object location is empty");
+            return 1;
+        }
     
-    fclose(obj_file);
-    return 0;
+        // Open the object file and read the data at the specified location
+        FILE* obj_file = fopen(strcat(db_path, "/db/db.obj"), "rb");
+        if (!obj_file) {
+            perror("Failed to open object file");
+            return 1;
+        }
+    
+        // Seek to the object location
+        if (fseek(obj_file, entry_loc->obj_loc, SEEK_SET) != 0) {
+            perror("Failed to seek to object location");
+            fclose(obj_file);
+            return 1;
+        }
+    
+        // TODO: Read and parse the object data based on the schema
+        // This would involve reading the binary data and converting it to the appropriate format
+        
+        fclose(obj_file);
+        return 0;
+    }
+    else if (entry->type == TYPE_MAP) {
+        Data* entry_map = entry->map;
+        return entry_map;
+    }
 }
