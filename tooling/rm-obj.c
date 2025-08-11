@@ -71,9 +71,63 @@ int rm_obj(char* db_path, DBIndex db_index, int obj_id, int obj_format_id) {
     UT_array* table_obj_array = (UT_array*) utarray_eltptr(index_table_array, obj_format_id);
     IndexArrayEntry* entry = (IndexArrayEntry*) utarray_eltptr(table_obj_array, obj_id);
     IndexArrayEntry* next_entry = (IndexArrayEntry*) utarray_eltptr(table_obj_array, obj_id + 1);
-    if (!entry || !next_entry) {
+    if (!entry) {
         fprintf(stderr, "Invalid object id or format id\n");
         return 1;
+    }
+    if (!next_entry) {  // Entry is the last in the file, no next entry
+        uint32_t obj_location = entry->obj_loc;
+        uint32_t idx_location = entry->idx_loc;
+        ObjLocation loc = {
+            .obj_id = obj_id,
+            .obj_format_id = obj_format_id
+        };
+        utarray_push_back(db_index.empty_indexes, &loc);
+
+         FILE* temp_file = fopen(strcat(db_path, "/db/temp.obj"), "wb");
+
+        if (temp_file == NULL) {
+            perror("Error creating temp.obj file");
+            fclose(temp_file);
+            return 1;
+        }
+
+        char* filename = strcat(db_path, "/db/db.obj");
+
+        FILE* obj_file = fopen(filename, "ab");
+
+        if (obj_file == NULL) {
+            perror("Error creating temp.obj file");
+            fclose(obj_file);
+            return 1;
+        }
+
+        long current_pos = 0;
+        char ch;
+
+        // Copy content before the removed object
+        while ((ch = fgetc(obj_file)) != EOF && current_pos < obj_location) {
+            fputc(ch, temp_file);
+            current_pos++;
+        }
+
+        // No content after removed object (object at end of file)
+
+        fclose(temp_file);
+        fclose(obj_file);
+
+        // Replace the original file with the modified temporary file
+        if (remove(filename) != 0) {
+            perror("Error deleting original file");
+            return;
+        }
+        if (rename("temp.txt", filename) != 0) {
+            perror("Error renaming temporary file");
+        }
+
+        remove_index_entry(db_path, idx_location);
+
+        return 0;
     }
     uint32_t obj_location = entry->obj_loc;
     uint32_t idx_location = entry->idx_loc;
