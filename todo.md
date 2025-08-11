@@ -1,5 +1,11 @@
 Instead of taking Obj id and obj format id individually, we need to take them both as the ObjLocation struct
 
+We need to memorize emptied locations inside the .obj file to be filled up in post
+
+In mk obj sanitize content to remove \x01, \x02, and \x03
+
+Next Entry Might not be the next location. The next id might have been removed, and now its just an empty location
+
 Check proper Attributetype icd handling, free function unused
 
 Rename outer and inner icd variables to make sense, and extract variables in code cleanup

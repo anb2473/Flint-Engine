@@ -2,6 +2,8 @@
 // If only a location is provided, load data from obj file to array
 // Otherwise load data directly from array
 
+// \x01 is a seperator, \x02 is a null value, \x03 is a marker that that data region is empty
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -11,6 +13,7 @@
 
 typedef struct {
     uint32_t obj_loc;
+    uint16_t obj_size;
     uint32_t idx_loc;
 } IndexArrayEntry;
 
@@ -43,6 +46,10 @@ typedef struct {
     UT_array* index_table_array;
     UT_array* empty_indexes;
 } DBIndex;
+
+Data* interpret_obj_str(char* obj_str) {
+
+}
 
 // TODO: Implement read_obj function
 Data* read_obj(const char* db_path, DBIndex* db_index, uint32_t obj_id, uint32_t table_id) {
@@ -81,8 +88,11 @@ Data* read_obj(const char* db_path, DBIndex* db_index, uint32_t obj_id, uint32_t
             return 1;
         }
     
-        // TODO: Read and parse the object data based on the schema
-        // This would involve reading the binary data and converting it to the appropriate format
+        long current_pos = 0;
+
+        while (current_pos < entry_loc->obj_size) { // Read object data
+            current_pos++;
+        }
         
         fclose(obj_file);
         return 0;

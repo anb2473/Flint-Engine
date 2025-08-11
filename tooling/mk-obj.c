@@ -34,9 +34,9 @@ typedef struct
     UT_array *properties; // Attributes for the property
 } Attribute;
 
-typedef struct
-{
+typedef struct {
     uint32_t obj_loc;
+    uint16_t obj_size;
     uint32_t idx_loc;
 } IndexArrayEntry;
 
@@ -96,9 +96,9 @@ typedef struct
     uint16_t size;    // The size of the object in bytes (maximum 65,535 bytes in a single object)
 } IndexEntry;
 
-typedef struct
-{
+typedef struct {
     uint32_t obj_loc;
+    uint16_t obj_size;
     uint32_t idx_loc;
 } IndexArrayEntry;
 
@@ -207,7 +207,7 @@ int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, HashIt
         }
 
         // Add empty slots with UINT32_MAX values
-        IndexArrayEntry empty_entry = {UINT32_MAX, UINT32_MAX};
+        IndexArrayEntry empty_entry = {UINT32_MAX, UINT16_MAX, UINT32_MAX};
         for (size_t i = current_size; i < new_size; i++)
         {
             utarray_push_back(soa->objects, &empty_entry);
@@ -277,6 +277,7 @@ int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, HashIt
     if (entry_ptr)
     {
         entry_ptr->obj_loc = obj_file_len;
+        entry_ptr->obj_size = strlen(obj_data);
         entry_ptr->idx_loc = new_object_id;
     }
 

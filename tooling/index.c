@@ -213,6 +213,7 @@ UT_icd table_structure_icd = {
 
 typedef struct {
     uint32_t obj_loc;
+    uint16_t obj_size;
     uint32_t idx_loc;
 } IndexArrayEntry;
 
@@ -257,8 +258,9 @@ static void loc_or_data_init(void *elt) {
     lod->type = TYPE_INT;
     IndexArrayEntry* idx_entry = malloc(sizeof(IndexArrayEntry));
     // Initialize as empty entry - doesn't point anywhere
-    idx_entry->obj_loc = UINT32_MAX;  // Mark as empty/invalid object location
-    idx_entry->idx_loc = UINT32_MAX;  // Mark as empty/invalid index location
+    idx_entry->obj_loc = UINT32_MAX;  // Mark as empty object location
+    idx_entry->obj_size = UINT16_MAX;   // Mark as empty object size
+    idx_entry->idx_loc = UINT32_MAX;  // Mark as empty index location
     lod->idx_entry = idx_entry;
     lod->map = NULL; // union member
 }
@@ -269,7 +271,7 @@ static void loc_or_data_copy(void *dst, const void *src) {
     LocOrData *d = (LocOrData *)dst;
 
     d->type = s->type;
-    if (s->type == TYPE_INT) {
+    if (s->type == TYPE_LOC) {
         d->idx_entry = s->idx_entry;
     } else if (s->type == TYPE_MAP) {
         d->map = NULL;
@@ -557,6 +559,7 @@ DBIndex index_db(const char* db_path) {
             // Allocate a new IndexArrayEntry and set its values
             IndexArrayEntry* new_entry = malloc(sizeof(IndexArrayEntry));
             new_entry->obj_loc = object_loc;
+            new_entry->obj_size = buffer.size;
             new_entry->idx_loc = idx_loc;
             
             // Store the pointer in the union

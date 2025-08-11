@@ -14,6 +14,7 @@ typedef struct {
 
 typedef struct {
     uint32_t obj_loc;
+    uint16_t obj_size;
     uint32_t idx_loc;
 } IndexArrayEntry;
 
@@ -93,6 +94,8 @@ int rm_obj(char* db_path, DBIndex db_index, int obj_id, int obj_format_id) {
     
     IndexArrayEntry* entry = (IndexArrayEntry*)utarray_eltptr(soa->objects, obj_id);
     IndexArrayEntry* next_entry = (IndexArrayEntry*)utarray_eltptr(soa->objects, obj_id + 1);
+    // Check if a next entry exists, if it does not we can directly remove the object,
+    // otherwise we need to replace the object with empty characters
     
     if (!entry) {
         fprintf(stderr, "Invalid object id or format id\n");
@@ -100,6 +103,7 @@ int rm_obj(char* db_path, DBIndex db_index, int obj_id, int obj_format_id) {
     }
     
     if (!next_entry) {  // Entry is the last in the file, no next entry
+        // We can directly remove the object as it won't cause any conflicts with other object locations
         uint32_t obj_location = entry->obj_loc;
         uint32_t idx_location = entry->idx_loc;
         ObjLocation loc = {
@@ -154,22 +158,15 @@ int rm_obj(char* db_path, DBIndex db_index, int obj_id, int obj_format_id) {
 
         return 0;
     }
+    // If the object is not the last in the file we cannot directly remove it, instead we need to clear the data at it's location
     uint32_t obj_location = entry->obj_loc;
+    uint16_t obj_size = entry->obj_size;
     uint32_t idx_location = entry->idx_loc;
-    uint32_t next_obj_location = next_entry->obj_loc;
     ObjLocation loc = {
         .obj_id = obj_id,
         .obj_format_id = obj_format_id
     };
     utarray_push_back(db_index.empty_indexes, &loc);
-
-    FILE* temp_file = fopen(strcat(db_path, "/db/temp.obj"), "wb");
-
-    if (temp_file == NULL) {
-        perror("Error creating temp.obj file");
-        fclose(temp_file);
-        return 1;
-    }
 
     char* filename = strcat(db_path, "/db/db.obj");
 
@@ -184,32 +181,15 @@ int rm_obj(char* db_path, DBIndex db_index, int obj_id, int obj_format_id) {
     long current_pos = 0;
     char ch;
 
-    // Copy content before the removed object
-    while ((ch = fgetc(obj_file)) != EOF && current_pos < obj_location) {
-        fputc(ch, temp_file);
+    fseek(obj_file, obj_location, SEEK_SET);
+
+    // Null the removed object by replacing it with \x03 empty characters
+    while (current_pos < obj_size) {
+        fputc("\x03", obj_file);
         current_pos++;
     }
 
-    // Skip the removed object
-    fseek(obj_file, next_obj_location, SEEK_SET);
-
-    // Copy content after the removed object
-    while ((ch = fgetc(obj_file)) != EOF) {
-        fputc(ch, temp_file);
-    }
-
-    fclose(temp_file);
     fclose(obj_file);
-
-    // Replace the original file with the modified temporary file
-    if (remove(filename) != 0) {
-        perror("Error deleting original file");
-        return 1;
-    }
-    if (rename("temp.txt", filename) != 0) {
-        perror("Error renaming temporary file");
-        return 1;
-    }
 
     remove_index_entry(db_path, idx_location);
 
