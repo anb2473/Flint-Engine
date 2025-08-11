@@ -234,7 +234,7 @@ typedef struct {
 } ObjLocation;
 
 typedef enum {
-    TYPE_INT,
+    TYPE_LOC,
     TYPE_MAP,
 } LocOrDataType;
 
@@ -247,7 +247,7 @@ typedef struct {
 typedef struct {
     LocOrDataType type;
     union {
-        int i;
+        IndexArrayEntry* idx_entry;
         Data *map;
     };
 } LocOrData;
@@ -255,7 +255,11 @@ typedef struct {
 static void loc_or_data_init(void *elt) {
     LocOrData *lod = (LocOrData *)elt;
     lod->type = TYPE_INT;
-    lod->i = 0;
+    IndexArrayEntry* idx_entry = malloc(sizeof(IndexArrayEntry));
+    // Initialize as empty entry - doesn't point anywhere
+    idx_entry->obj_loc = UINT32_MAX;  // Mark as empty/invalid object location
+    idx_entry->idx_loc = UINT32_MAX;  // Mark as empty/invalid index location
+    lod->idx_entry = idx_entry;
     lod->map = NULL; // union member
 }
 
@@ -266,7 +270,7 @@ static void loc_or_data_copy(void *dst, const void *src) {
 
     d->type = s->type;
     if (s->type == TYPE_INT) {
-        d->i = s->i;
+        d->idx_entry = s->idx_entry;
     } else if (s->type == TYPE_MAP) {
         d->map = NULL;
         Data *curr, *tmp;
@@ -481,8 +485,8 @@ DBIndex index_db(const char* db_path) {
     //    StructureObjectsArray [
     //      reserved_int,
     //      UT_ARRAY [
-    //        IndexArrayEntry { location_1, idx_1 },
-    //        IndexArrayEntry { location_2, idx_2 },
+    //        LocOrData { TYPE_LOC, IndexArrayEntry* { location_1, idx_1 } },
+    //        LocOrData { TYPE_LOC, IndexArrayEntry* { location_2, idx_2 } },
     //      ]
     //    ]
     // ]
@@ -493,7 +497,7 @@ DBIndex index_db(const char* db_path) {
     for (int i = 0; i < schema_table_array_len; i++) {
         StructureObjectsArray soa;
         soa.reserved_int = 0;  // Initialize reserved integer
-        utarray_new(soa.objects, &index_array_entry_icd);  // Create array for IndexArrayEntry objects
+        utarray_new(soa.objects, &loc_or_data_icd);  // Create array for LocOrData objects
         
         utarray_push_back(index_table_array, &soa);
     }
@@ -509,13 +513,13 @@ DBIndex index_db(const char* db_path) {
             // Create a new StructureObjectsArray if it doesn't exist
             StructureObjectsArray new_soa;
             new_soa.reserved_int = 0;
-            utarray_new(new_soa.objects, &index_array_entry_icd);
+            utarray_new(new_soa.objects, &loc_or_data_icd);
             
             // Ensure the outer array is big enough
             while (utarray_len(index_table_array) <= buffer.table_id) {
                 StructureObjectsArray empty_soa;
                 empty_soa.reserved_int = 0;
-                utarray_new(empty_soa.objects, &index_array_entry_icd);
+                utarray_new(empty_soa.objects, &loc_or_data_icd);
                 utarray_push_back(index_table_array, &empty_soa);
             }
             
@@ -527,27 +531,36 @@ DBIndex index_db(const char* db_path) {
         size_t current_size = utarray_len(soa->objects);
         
         if (required_size > current_size) {
-            // Expand array with UINT32_MAX empty slots
+            // Expand array with empty LocOrData slots
             size_t new_size = current_size == 0 ? 64 : current_size;
             while (new_size <= buffer.object_id) {
                 new_size *= 2;  // double size each time until big enough
             }
             
-            // Add empty slots with UINT32_MAX values
-            IndexArrayEntry empty_entry = {UINT32_MAX, UINT32_MAX};
+            // Add empty slots with initialized LocOrData objects
             for (size_t i = current_size; i < new_size; i++) {
-                utarray_push_back(soa->objects, &empty_entry);
+                LocOrData empty_lod;
+                loc_or_data_init(&empty_lod);
+                utarray_push_back(soa->objects, &empty_lod);
             }
         }
 
         // Get the reserved integer from the StructureObjectsArray
         uint32_t id = soa->reserved_int;
 
-        // Set the object at the specific object_id position
-        IndexArrayEntry* entry_ptr = (IndexArrayEntry*)utarray_eltptr(soa->objects, buffer.object_id);
-        if (entry_ptr) {
-            entry_ptr->obj_loc = object_loc;
-            entry_ptr->idx_loc = idx_loc;
+        // Get the LocOrData object at the specific object_id position
+        LocOrData* lod_ptr = (LocOrData*)utarray_eltptr(soa->objects, buffer.object_id);
+        if (lod_ptr) {
+            // Set the type to TYPE_LOC since we're storing an IndexArrayEntry
+            lod_ptr->type = TYPE_LOC;
+            
+            // Allocate a new IndexArrayEntry and set its values
+            IndexArrayEntry* new_entry = malloc(sizeof(IndexArrayEntry));
+            new_entry->obj_loc = object_loc;
+            new_entry->idx_loc = idx_loc;
+            
+            // Store the pointer in the union
+            lod_ptr->idx_entry = new_entry;
         }
 
         // Increment the reserved integer for next object
