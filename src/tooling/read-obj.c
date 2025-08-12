@@ -20,6 +20,9 @@
 #include "../../include/structs/table-structure.h"
 #include "../../include/structs/loc-or-data.h"
 
+// Include icds
+#include "../../include/icds/attribute-icd.h"
+
 DataMap* read_obj(const char* db_path, DBIndex* db_index, uint32_t obj_id, uint32_t table_id) {
     StructureObjectsArray* soa = utarray_eltptr(db_index->index_table_array, table_id);
     if (!soa) {

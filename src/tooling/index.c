@@ -125,24 +125,24 @@ SchemaParserResult load_schema(const char* db_path) {
                 if (current_byte == '@') {
                     current_attribute->name = strdup(attribute_name); // Allocate memory for the attribute name
                     memset(attribute_name, 0, 256); // Flush attribute name
-                    state = INSIDE_ATTR; // Transition to inside attribute
+                    state = INSIDE_PROPERTY; // Transition to inside attribute
                     continue;
                 }
                 if (current_byte == ',') {
                     current_attribute->name = strdup(attribute_name); // Allocate memory for the attribute name
                     memset(attribute_name, 0, 256); // Flush attribute name
-                    Attribute* prop_attr = create_attribute(property, parse_attribute_type(attribute_type));
+                    Attribute* prop_attr = create_attribute(current_attribute->name, parse_attribute_type(attribute_type), current_attribute->properties);
                     memset(attribute_type, 0, 256); // Flush attribute type
-                    utarray_push_back(current_attribute->properties, prop_attr);
+                    utarray_push_back(table_structure->attributes, prop_attr);
                     state = INSIDE_TYPE; // Transition to inside type
                     continue;
                 }
                 if (current_byte == '}') {
                     current_attribute->name = strdup(attribute_name); // Allocate memory for the attribute name
                     memset(attribute_name, 0, 256); // Flush attribute name
-                    Attribute* prop_attr = create_attribute(property, parse_attribute_type(attribute_type));
+                    Attribute* prop_attr = create_attribute(current_attribute->name, parse_attribute_type(attribute_type), current_attribute->properties);
                     memset(attribute_type, 0, 256); // Flush attribute type
-                    utarray_push_back(current_attribute->properties, prop_attr);
+                    utarray_push_back(table_structure->attributes, prop_attr);
                     free(prop_attr);  // Because utarray copies by value  
                     utarray_push_back(schema_table_array, table_structure);    // Add the table structure to the outer array
                     schema_result.length++;
@@ -150,27 +150,27 @@ SchemaParserResult load_schema(const char* db_path) {
                     continue;
                 }
                 append_char(attribute_name, 256, current_byte);
-            case INSIDE_ATTR:
+            case INSIDE_PROPERTY:
                 // three cases: @attr @attr, @attr {, @attr,
                 if (current_byte == '@') {
-                    create_attribute(property, current_attribute->properties);
-                    state = INSIDE_ATTR; // Transition to inside attribute
+                    state = INSIDE_PROPERTY; // Transition to inside attribute
+                    utarray_push_back(current_attribute->properties, property);
                     continue;
                 }
                 if (current_byte == ',') {
-                    create_attribute(property, current_attribute->properties);
-                    Attribute* prop_attr = create_attribute(property, parse_attribute_type(attribute_type));
+                    utarray_push_back(current_attribute->properties, property);
+                    Attribute* prop_attr = create_attribute(current_attribute->name, parse_attribute_type(attribute_type), current_attribute->properties);
                     memset(attribute_type, 0, 256); // Flush attribute type
-                    utarray_push_back(current_attribute->properties, prop_attr);
+                    utarray_push_back(table_structure->attributes, prop_attr);
                     free(prop_attr);  // Because utarray copies by value                    
                     state = INSIDE_TYPE; // Transition to inside type
                     continue;
                 }
                 if (current_byte == '}') {
-                    create_attribute(property, current_attribute->properties);
-                    Attribute* prop_attr = create_attribute(property, parse_attribute_type(attribute_type));
+                    utarray_push_back(current_attribute->properties, property);
+                    Attribute* prop_attr = create_attribute(current_attribute->name, parse_attribute_type(attribute_type), current_attribute->properties);
                     memset(attribute_type, 0, 256); // Flush attribute type
-                    utarray_push_back(current_attribute->properties, prop_attr);
+                    utarray_push_back(table_structure->attributes, prop_attr);
                     free(prop_attr);  // Because utarray copies by value  
                     utarray_push_back(schema_table_array, table_structure);    // Add the table structure to the outer array
                     schema_result.length++;

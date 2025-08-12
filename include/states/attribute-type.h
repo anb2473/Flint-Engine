@@ -7,18 +7,6 @@ typedef enum {
     TYPE_FLOAT,
 } AttributeType;
 
-char *attr_type_to_str(AttributeType type) {
-    switch (type)
-    {
-    case TYPE_INT:
-        return "int";
-    case TYPE_STR:
-        return "str";
-    case TYPE_FLOAT:
-        return "float";
-    default:
-        return "unknown";
-    }
-}
+char *attr_type_to_str(AttributeType type);
 
 #endif

@@ -158,7 +158,7 @@ int rm_obj(char* db_path, DBIndex db_index, int obj_id, int obj_format_id) {
 
     // Null the removed object by replacing it with \x03 empty characters
     while (current_pos < obj_size) {
-        fputc("\x03", obj_file);
+        fputc(0x03, obj_file);
         current_pos++;
     }
 

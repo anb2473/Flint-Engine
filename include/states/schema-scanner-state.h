@@ -6,7 +6,7 @@ typedef enum {
     OUTSIDE_STRUCTURE,
     INSIDE_TYPE,
     INSIDE_NAME,
-    INSIDE_ATTR,
+    INSIDE_PROPERTY,
 } SchemaScannerState;
 
 #endif

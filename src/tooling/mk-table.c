@@ -22,9 +22,12 @@ int mk_table(const char* db_path, DBIndex* db_index, char* table_name, UT_array*
 
     utarray_push_back(db_index->schema_table_array, table_structure);   // Add the table structure to the schema array
 
-    FILE* schema_file = fopen(strcat(db_path, "/db/schema.flint"), "ab"); // Open schema file in append mode
+    // Create a copy of db_path since strcat modifies its first argument
+    char* db_path_copy = strdup(db_path);
+    FILE* schema_file = fopen(strcat(db_path_copy, "/db/schema.flint"), "ab"); // Open schema file in append mode
     if (schema_file == NULL) {
         perror("Error opening schema.flint file");
+        free(db_path_copy); // Clean up the copy
         return -1; // Return error code
     }
 
@@ -57,5 +60,6 @@ int mk_table(const char* db_path, DBIndex* db_index, char* table_name, UT_array*
     fprintf(schema_file, "%s {\n%s\n}\n", table_structure->name, attribute_str);
     
     fclose(schema_file);
+    free(db_path_copy); // Clean up the copy
     return 0;
 }
