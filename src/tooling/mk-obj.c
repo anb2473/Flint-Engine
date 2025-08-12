@@ -4,29 +4,26 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../utils/utarray.h"
-#include "../utils/uthash.h"
+#include "../../include/utils/utarray.h"
+#include "../../include/utils/uthash.h"
 #include <stdio.h>
 
 // Include structs
-#include "../structs/db-index.h"
-#include "../structs/index-array-entry.h"
-#include "../structs/structure-objects-array.h"
-#include "../structs/index-entry.h"
-#include "../structs/data-map.h"
-#include "../structs/attribute.h"
-#include "../structs/table-structure.h"
-#include "../structs/obj-location.h"
+#include "../../include/structs/db-index.h"
+#include "../../include/structs/index-array-entry.h"
+#include "../../include/structs/structure-objects-array.h"
+#include "../../include/structs/index-entry.h"
+#include "../../include/structs/data-map.h"
+#include "../../include/structs/attribute.h"
+#include "../../include/structs/table-structure.h"
+#include "../../include/structs/obj-location.h"
 
 // Include icds
-#include "../icds/index-array-entry-icd.h"
+#include "../../include/icds/index-array-entry-icd.h"
 
-bool is_property(char *property_name, UT_array *properties)
-{
-    for (int i = 0; i < utarray_len(properties); i++)
-    {
-        if (utarray_eltptr(properties, i) == property_name)
-        {
+bool is_property(char *property_name, UT_array *properties) {
+    for (int i = 0; i < utarray_len(properties); i++) {
+        if (utarray_eltptr(properties, i) == property_name) {
             return true;
         }
     }
@@ -49,27 +46,23 @@ int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, DataMa
     UT_array *attributes = ((TableStructure *)utarray_eltptr(db_index->schema_table_array, structure_id))->attributes;
     size_t attr_len = utarray_len(attributes);
 
-    for (int i = 0; i < attr_len; i++)
-    {
+    for (int i = 0; i < attr_len; i++) {
         Attribute *attr = (Attribute *)utarray_eltptr(attributes, i);
         DataMap *item;
         HASH_FIND_STR(data, attr->name, item);
-        if (item)
-        {
+        if (item) {
             obj_data = strcat(obj_data, item->data);
-            if (i != attr_len - 1)
-            { // if not last attr, add a seperator
+            if (i != attr_len - 1) {
+                // if not last attr, add a seperator
                 obj_data = strcat(obj_data, "\x01");
             }
         }
-        else
-        {
-            if (is_property("nullable", attr->properties))
-            { // Check if property is nullable
+        else {
+            if (is_property("nullable", attr->properties)) {
+                // Check if property is nullable
                 obj_data = strcat(obj_data, "\x02");
             }
-            else
-            {
+            else {
                 perror("Nulled non nullable value");
                 return 1;
             }
@@ -92,11 +85,9 @@ int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, DataMa
     StructureObjectsArray *soa = (StructureObjectsArray *)utarray_eltptr(db_index->index_table_array, structure_id);
 
     // If the StructureObjectsArray doesn't exist, create it
-    if (!soa)
-    {
+    if (!soa) {
         // Ensure the outer array is big enough
-        while (utarray_len(db_index->index_table_array) <= structure_id)
-        {
+        while (utarray_len(db_index->index_table_array) <= structure_id) {
             StructureObjectsArray empty_soa;
             empty_soa.reserved_int = 0;
             utarray_new(empty_soa.objects, &index_array_entry_icd);
@@ -121,30 +112,25 @@ int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, DataMa
     size_t required_size = new_object_id + 1;
     size_t current_size = utarray_len(soa->objects);
 
-    if (required_size > current_size)
-    {
+    if (required_size > current_size) {
         // Expand array with UINT32_MAX empty slots
         size_t new_size = current_size == 0 ? 64 : current_size;
-        while (new_size <= new_object_id)
-        {
+        while (new_size <= new_object_id) {
             new_size *= 2; // double size each time until big enough
         }
 
         // Add empty slots with UINT32_MAX values
         IndexArrayEntry empty_entry = {UINT32_MAX, UINT16_MAX, UINT32_MAX};
-        for (size_t i = current_size; i < new_size; i++)
-        {
+        for (size_t i = current_size; i < new_size; i++) {
             utarray_push_back(soa->objects, &empty_entry);
         }
     }
 
     // Check if we can reuse an empty slot
-    if (utarray_len(db_index->empty_indexes) == 0)
-    {
+    if (utarray_len(db_index->empty_indexes) == 0) {
         // Create new object in array at the specific position
         IndexArrayEntry *entry_ptr = (IndexArrayEntry *)utarray_eltptr(soa->objects, new_object_id);
-        if (entry_ptr)
-        {
+        if (entry_ptr) {
             entry_ptr->obj_loc = obj_file_len;
             entry_ptr->idx_loc = new_object_id;
         }
@@ -155,39 +141,33 @@ int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, DataMa
 
     // Try to reuse an empty slot
     size_t num_of_empty_indexes = utarray_len(db_index->empty_indexes);
-    if (num_of_empty_indexes > 0)
-    {
+    if (num_of_empty_indexes > 0) {
         ObjLocation *empty_slot_location_ptr = (ObjLocation *)utarray_eltptr(db_index->empty_indexes, num_of_empty_indexes - 1);
         ObjLocation empty_slot_location = *empty_slot_location_ptr;
         utarray_pop_back(db_index->empty_indexes);
 
         StructureObjectsArray *target_soa = (StructureObjectsArray *)utarray_eltptr(db_index->index_table_array, empty_slot_location.obj_format_id);
 
-        if (target_soa && target_soa->objects)
-        {
+        if (target_soa && target_soa->objects) {
             // Ensure the target array is big enough
             size_t target_required_size = empty_slot_location.obj_id + 1;
             size_t target_current_size = utarray_len(target_soa->objects);
 
-            if (target_required_size > target_current_size)
-            {
+            if (target_required_size > target_current_size) {
                 size_t target_new_size = target_current_size == 0 ? 64 : target_current_size;
-                while (target_new_size <= empty_slot_location.obj_id)
-                {
+                while (target_new_size <= empty_slot_location.obj_id) {
                     target_new_size *= 2;
                 }
 
                 IndexArrayEntry empty_entry = {UINT32_MAX, UINT32_MAX};
-                for (size_t i = target_current_size; i < target_new_size; i++)
-                {
+                for (size_t i = target_current_size; i < target_new_size; i++) {
                     utarray_push_back(target_soa->objects, &empty_entry);
                 }
             }
 
             // Set the object at the empty slot position
             IndexArrayEntry *target_entry_ptr = (IndexArrayEntry *)utarray_eltptr(target_soa->objects, empty_slot_location.obj_id);
-            if (target_entry_ptr)
-            {
+            if (target_entry_ptr) {
                 target_entry_ptr->obj_loc = obj_file_len;
                 target_entry_ptr->idx_loc = new_object_id;
             }
@@ -198,8 +178,7 @@ int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, DataMa
 
     // Fallback: create new object in the original structure
     IndexArrayEntry *entry_ptr = (IndexArrayEntry *)utarray_eltptr(soa->objects, new_object_id);
-    if (entry_ptr)
-    {
+    if (entry_ptr) {
         entry_ptr->obj_loc = obj_file_len;
         entry_ptr->obj_size = strlen(obj_data);
         entry_ptr->idx_loc = new_object_id;

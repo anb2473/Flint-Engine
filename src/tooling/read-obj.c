@@ -8,17 +8,17 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../utils/utarray.h"
-#include "../utils/uthash.h"
+#include "../../include/utils/utarray.h"
+#include "../../include/utils/uthash.h"
 
 // Include structs
-#include "../structs/db-index.h"
-#include "../structs/index-array-entry.h"
-#include "../structs/structure-objects-array.h"
-#include "../structs/data-map.h"
-#include "../structs/attribute.h"
-#include "../structs/table-structure.h"
-#include "../structs/loc-or-data.h"
+#include "../../include/structs/db-index.h"
+#include "../../include/structs/index-array-entry.h"
+#include "../../include/structs/structure-objects-array.h"
+#include "../../include/structs/data-map.h"
+#include "../../include/structs/attribute.h"
+#include "../../include/structs/table-structure.h"
+#include "../../include/structs/loc-or-data.h"
 
 DataMap* read_obj(const char* db_path, DBIndex* db_index, uint32_t obj_id, uint32_t table_id) {
     StructureObjectsArray* soa = utarray_eltptr(db_index->index_table_array, table_id);

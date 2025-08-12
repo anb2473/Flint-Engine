@@ -7,8 +7,7 @@ typedef enum {
     TYPE_FLOAT,
 } AttributeType;
 
-char *attr_type_to_str(AttributeType type)
-{
+char *attr_type_to_str(AttributeType type) {
     switch (type)
     {
     case TYPE_INT:

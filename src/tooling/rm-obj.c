@@ -2,19 +2,19 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "../utils/utarray.h"
+#include "../../include/utils/utarray.h"
 #include <stdint.h>
 #include <stdio.h>
 
 // Include structs
-#include "../structs/db-index.h"
-#include "../structs/index-array-entry.h"
-#include "../structs/structure-objects-array.h"
-#include "../structs/index-entry.h"
-#include "../structs/obj-location.h"
+#include "../../include/structs/db-index.h"
+#include "../../include/structs/index-array-entry.h"
+#include "../../include/structs/structure-objects-array.h"
+#include "../../include/structs/index-entry.h"
+#include "../../include/structs/obj-location.h"
 
 // Include icds
-#include "../icds/index-array-entry-icd.h"
+#include "../../include/icds/index-array-entry-icd.h"
 
 int remove_index_entry(const char* db_path, uint32_t idx_location) {
     char idx_filename[512];

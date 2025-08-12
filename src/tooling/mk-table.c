@@ -1,18 +1,18 @@
 // Create a new table
 
 #include <stdint.h>
-#include "../utils/utarray.h"
+#include "../../include/utils/utarray.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../structs/attribute.h"
+#include "../../include/structs/attribute.h"
 
 // Include structs
-#include "../structs/db-index.h"
-#include "../structs/table-structure.h"
+#include "../../include/structs/db-index.h"
+#include "../../include/structs/table-structure.h"
 
 // Include icds
-#include "../icds/attribute-icd.h"
+#include "../../include/icds/attribute-icd.h"
 
 int mk_table(const char* db_path, DBIndex* db_index, char* table_name, UT_array* attributes) {
     TableStructure* table_structure = alloc_table_structure(); // Allocate memory for the table structure

@@ -1,5 +1,11 @@
 Instead of taking Obj id and obj format id individually, we need to take them both as the ObjLocation struct
 
+Handle the .env (We somehow still havent even touched that functionality)
+
+Gracefull handle a trailing \ in the db_path arguments
+
+Check proper freeing so we do not leave dangeling objects
+
 We need to memorize emptied locations inside the .obj file to be filled up in post
 
 In mk obj sanitize content to remove \x01, \x02, and \x03

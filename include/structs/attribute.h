@@ -1,7 +1,9 @@
 #ifndef ATTRIBUTE_H
 #define ATTRIBUTE_H
 
+#include "stdio.h"
 #include "../states/attribute-type.h"
+#include "../utils/utarray.h"
 
 static UT_icd char_icd = {sizeof(char), NULL, NULL, NULL};
 
