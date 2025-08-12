@@ -3,32 +3,10 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <sys/stat.h>
-#include <errno.h>
-#endif
+#include "../io-utils/mkdir.h"
 
 // Create /db directory, .env file, schema.flint file (declaring the tables), db.obj file (a list of every single objects data),
 // db.idx file (a list of every single objects location with a fixed length for indexing)
-
-int mk_dir(const char* path) {
-    #ifdef _WIN32
-        if (CreateDirectory(path, NULL) || GetLastError() == ERROR_ALREADY_EXISTS) {
-            return 0;
-        } else {
-            return 1;
-        }
-    #else
-        if (mkdir(path, 0755) == 0 || errno == EEXIST) {
-            return 0;
-        } else {
-            perror("mkdir");
-            return 1;
-        }
-    #endif
-}
 
 int init(char* db_path) {
     // make /db directory

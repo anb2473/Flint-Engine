@@ -11,166 +11,16 @@
 #include "../utils/utarray.h"
 #include "../utils/uthash.h"
 
-typedef struct {
-    uint32_t obj_loc;
-    uint16_t obj_size;
-    uint32_t idx_loc;
-} IndexArrayEntry;
+// Include structs
+#include "../structs/db-index.h"
+#include "../structs/index-array-entry.h"
+#include "../structs/structure-objects-array.h"
+#include "../structs/data-map.h"
+#include "../structs/attribute.h"
+#include "../structs/table-structure.h"
+#include "../structs/loc-or-data.h"
 
-typedef struct {
-    uint32_t reserved_int;  // Reserved integer at index 0
-    UT_array* objects;      // Array of IndexArrayEntry objects
-} StructureObjectsArray;
-
-typedef enum {
-    TYPE_LOC,
-    TYPE_MAP,
-} LocOrDataType;
-
-typedef struct {
-    char *name;                 // key
-    AttributeValue *data;       // value
-    UT_hash_handle hh;          // makes this struct hashable
-} Data;
-
-/**
- * Deep copy an AttributeValue.
- */
-AttributeValue *copy_attribute_value(const AttributeValue *src) {
-    AttributeValue *copy = malloc(sizeof(AttributeValue));
-    if (!copy) {
-        perror("malloc");
-        exit(EXIT_FAILURE);
-    }
-
-    copy->type = src->type;
-    switch (src->type) {
-        case TYPE_INT:
-            copy->value.i = src->value.i;
-            break;
-        case TYPE_FLOAT:
-            copy->value.f = src->value.f;
-            break;
-        case TYPE_STR:
-            copy->value.s = strdup(src->value.s);
-            if (!copy->value.s) {
-                perror("strdup");
-                free(copy);
-                exit(EXIT_FAILURE);
-            }
-            break;
-    }
-    return copy;
-}
-
-
-/**
- * Create a new Data object.
- */
-Data *create_data(const char *name, const AttributeValue *value) {
-    Data *d = malloc(sizeof(Data));
-    if (!d) {
-        perror("malloc");
-        exit(EXIT_FAILURE);
-    }
-
-    d->name = strdup(name);
-    if (!d->name) {
-        perror("strdup");
-        free(d);
-        exit(EXIT_FAILURE);
-    }
-
-    d->data = copy_attribute_value(value);
-    return d;
-}
-
-/**
- * Insert or update a value in the hash table.
- */
-void insert_data(Data **table, const char *name, const AttributeValue *value) {
-    Data *existing;
-    HASH_FIND_STR(*table, name, existing);
-
-    if (existing) {
-        // Free the old value
-        if (existing->data->type == TYPE_STR) {
-            free(existing->data->value.s);
-        }
-        free(existing->data);
-
-        // Store a deep copy of the new value
-        existing->data = copy_attribute_value(value);
-    } else {
-        Data *d = create_data(name, value);
-        HASH_ADD_KEYPTR(hh, *table, d->name, strlen(d->name), d);
-    }
-}
-
-
-typedef struct {
-    LocOrDataType type;
-    union {
-        IndexArrayEntry* idx_entry;
-        Data *map;
-    };
-} LocOrData;
-
-typedef enum {
-    TYPE_INT,
-    TYPE_STR,
-    TYPE_FLOAT,
-} AttributeType;
-
-typedef struct {
-    char* name;
-    UT_array* attributes
-} TableStructure;
-
-typedef struct {
-    char* name;
-    AttributeType type;
-    UT_array* properties; // Attributes for the property
-} Attribute;
-
-typedef struct {
-    UT_array* schema_table_array;
-    UT_array* index_table_array;
-    UT_array* empty_indexes;
-} DBIndex;
-
-typedef struct {
-    AttributeType type;
-    union {
-        int i;
-        float f;
-        char *s;
-    } value;
-} AttributeValue;
-
-AttributeValue parse_str_to_val(const char *input, AttributeType type) {
-    AttributeValue attr;
-    attr.type = type;
-
-    switch (type) {
-        case TYPE_INT:
-            attr.value.i = atoi(input); // convert string to int
-            break;
-        case TYPE_FLOAT:
-            attr.value.f = strtof(input, NULL); // convert string to float
-            break;
-        case TYPE_STR:
-            attr.value.s = strdup(input); // duplicate string (malloc'd)
-            break;
-        default:
-            fprintf(stderr, "Unknown type\n");
-            exit(EXIT_FAILURE);
-    }
-
-    return attr;
-}
-
-Data* read_obj(const char* db_path, DBIndex* db_index, uint32_t obj_id, uint32_t table_id) {
+DataMap* read_obj(const char* db_path, DBIndex* db_index, uint32_t obj_id, uint32_t table_id) {
     StructureObjectsArray* soa = utarray_eltptr(db_index->index_table_array, table_id);
     if (!soa) {
         fprintf(stderr, "Table not found\n");
@@ -204,7 +54,7 @@ Data* read_obj(const char* db_path, DBIndex* db_index, uint32_t obj_id, uint32_t
             return NULL;
         }
 
-        Data* data = NULL; // empty hash table
+        DataMap* data = NULL; // empty hash table
 
         TableStructure* table_schema = utarray_eltptr(db_index->schema_table_array, table_id);
         UT_array* attributes = table_schema->attributes;

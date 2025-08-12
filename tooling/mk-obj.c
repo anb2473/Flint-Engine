@@ -8,74 +8,18 @@
 #include "../utils/uthash.h"
 #include <stdio.h>
 
-typedef struct
-{
-    char *key;
-    char *value;
-    UT_hash_handle hh;
-} HashItem;
+// Include structs
+#include "../structs/db-index.h"
+#include "../structs/index-array-entry.h"
+#include "../structs/structure-objects-array.h"
+#include "../structs/index-entry.h"
+#include "../structs/data-map.h"
+#include "../structs/attribute.h"
+#include "../structs/table-structure.h"
+#include "../structs/obj-location.h"
 
-typedef enum
-{
-    TYPE_INT,
-    TYPE_STR,
-    TYPE_FLOAT,
-} AttributeType;
-
-typedef struct {
-    char* name;
-    UT_array* attributes;
-} TableStructure;
-
-typedef struct
-{
-    char *name;
-    AttributeType type;
-    UT_array *properties; // Attributes for the property
-} Attribute;
-
-typedef struct {
-    uint32_t obj_loc;
-    uint16_t obj_size;
-    uint32_t idx_loc;
-} IndexArrayEntry;
-
-// New struct to handle mixed data types in the inner arrays
-typedef struct
-{
-    uint32_t reserved_int; // Reserved integer at index 0
-    UT_array *objects;     // Array of IndexArrayEntry objects
-} StructureObjectsArray;
-
-// UT_icd for IndexArrayEntry
-static UT_icd index_array_entry_icd = {
-    sizeof(IndexArrayEntry), // Size of each element
-    NULL,                    // No special init
-    NULL,                    // No special copy
-    NULL                     // No special destructor
-};
-
-typedef struct
-{
-    UT_array *schema_table_array;
-    UT_array *index_table_array;
-    UT_array *empty_indexes;
-} DBIndex;
-
-char *attr_type_to_str(AttributeType type)
-{
-    switch (type)
-    {
-    case TYPE_INT:
-        return "int";
-    case TYPE_STR:
-        return "str";
-    case TYPE_FLOAT:
-        return "float";
-    default:
-        return "unknown";
-    }
-}
+// Include icds
+#include "../icds/index-array-entry-icd.h"
 
 bool is_property(char *property_name, UT_array *properties)
 {
@@ -89,27 +33,7 @@ bool is_property(char *property_name, UT_array *properties)
     return false;
 }
 
-typedef struct
-{
-    uint32_t object_id;
-    uint8_t table_id; // The id of the table structure (maximum 256 tables)
-    uint16_t size;    // The size of the object in bytes (maximum 65,535 bytes in a single object)
-} IndexEntry;
-
-typedef struct {
-    uint32_t obj_loc;
-    uint16_t obj_size;
-    uint32_t idx_loc;
-} IndexArrayEntry;
-
-typedef struct
-{
-    uint32_t obj_id;
-    uint32_t obj_format_id;
-} ObjLocation;
-
-int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, HashItem *data)
-{
+int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, DataMap *data) {
     // Data will be given as a hashmap
     // Data must be stored as an array
     // Cross check each value in the hashmap with the schema to find the correct position
@@ -128,11 +52,11 @@ int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, HashIt
     for (int i = 0; i < attr_len; i++)
     {
         Attribute *attr = (Attribute *)utarray_eltptr(attributes, i);
-        HashItem *item;
+        DataMap *item;
         HASH_FIND_STR(data, attr->name, item);
         if (item)
         {
-            obj_data = strcat(obj_data, item->value);
+            obj_data = strcat(obj_data, item->data);
             if (i != attr_len - 1)
             { // if not last attr, add a seperator
                 obj_data = strcat(obj_data, "\x01");

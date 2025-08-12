@@ -1,6 +1,8 @@
 {
     "files.associations": {
         "utarray.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "uthash.h": "c",
+        "db-index.h": "c"
     }
 }

@@ -6,37 +6,15 @@
 #include <stdint.h>
 #include <stdio.h>
 
-typedef struct {
-    UT_array* schema_table_array;
-    UT_array* index_table_array;
-    UT_array* empty_indexes;
-} DBIndex;
+// Include structs
+#include "../structs/db-index.h"
+#include "../structs/index-array-entry.h"
+#include "../structs/structure-objects-array.h"
+#include "../structs/index-entry.h"
+#include "../structs/obj-location.h"
 
-typedef struct {
-    uint32_t obj_loc;
-    uint16_t obj_size;
-    uint32_t idx_loc;
-} IndexArrayEntry;
-
-// New struct to handle mixed data types in the inner arrays
-typedef struct {
-    uint32_t reserved_int;  // Reserved integer at index 0
-    UT_array* objects;      // Array of IndexArrayEntry objects
-} StructureObjectsArray;
-
-// UT_icd for IndexArrayEntry
-static UT_icd index_array_entry_icd = {
-    sizeof(IndexArrayEntry), // Size of each element
-    NULL,                    // No special init
-    NULL,                    // No special copy
-    NULL                     // No special destructor
-};
-
-typedef struct {
-    uint32_t object_id;
-    uint8_t  table_id; // The id of the table structure (maximum 256 tables)
-    uint16_t size; // The size of the object in bytes (maximum 65,535 bytes in a single object)
-} IndexEntry;
+// Include icds
+#include "../icds/index-array-entry-icd.h"
 
 int remove_index_entry(const char* db_path, uint32_t idx_location) {
     char idx_filename[512];
@@ -77,11 +55,6 @@ int remove_index_entry(const char* db_path, uint32_t idx_location) {
     }
     return 0;
 }
-
-typedef struct {
-    uint32_t obj_id;
-    uint32_t obj_format_id;
-} ObjLocation;
 
 int rm_obj(char* db_path, DBIndex db_index, int obj_id, int obj_format_id) {
     UT_array* index_table_array = db_index.index_table_array;
