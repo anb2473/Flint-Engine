@@ -9,7 +9,7 @@
 
 int main() {
     char path[256];
-    printf("Enter a path to create the db");
     scanf("%s", path);
-    init(path);
+    printf("Initiating database\n");
+    return init(path);
 }

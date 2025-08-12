@@ -1,9 +1,26 @@
-$original_location = (Get-Location).Path
-while ((Get-Item -Path .).Name -ne "Flint-Engine") {
-    Set-Location ..
+param(
+    [string]$test_env_path
+)
+
+Write-Output "Compiling test-init.c"
+gcc "testing/test-init.c" src/icd-functions/*.c src/state-functions/*.c src/struct-functions/*.c src/tooling/*.c -Iinclude -o "testing/binaries/test-init"
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Compilation failed"
+    exit $LASTEXITCODE
 }
-$new_location = (Get-Location).Path
-$test_env = Join-Path $new_location 'test-env'
-gcc testing/test-init.c src/icd-functions/*.c src/state-functions/*.c src/struct-functions/*.c src/tooling/*.c -Iinclude -o test 
-$test_env | ./test.exe
-cd $original_location
+
+Write-Output "Running executable"
+if (Test-Path "testing/binaries/test-init.exe") {
+    $test_env_path | ./"testing/binaries/test-init.exe"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "test-init ended with non 0 exit code"
+        exit $LASTEXITCODE
+    }
+} else {
+    Write-Error "Failed to locate test-init executable"
+    exit 1
+}
+
+Write-Output "Completed test-init"
+exit 0
