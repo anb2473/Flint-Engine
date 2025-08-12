@@ -30,8 +30,8 @@ int init(char* db_path) {
 
     FILE *env_fptr;
     char env_path[PATH_MAX];
-    snprintf(env_path, sizeof(env_path), "%s/.env", db_dir);
-    env_fptr = fopen(strcat(db_dir, ".env"), "wb");
+    snprintf(env_path, sizeof(env_path), "%s/db.env", db_dir);
+    env_fptr = fopen(env_path, "wb");
     if (env_fptr == NULL) {
         perror("Failed to create .env file");
         return 1;
@@ -50,7 +50,7 @@ int init(char* db_path) {
 
     FILE *idx_fptr;
     char idx_path[PATH_MAX];
-    snprintf(idx_path, sizeof(idx_path), "%s/db.idx", db_path);
+    snprintf(idx_path, sizeof(idx_path), "%s/db.idx", db_dir);
     idx_fptr = fopen(idx_path, "wb");   // b is for binary mode (to avoid writing a full byte per character, e.g., 800 is 3 bytes)
     if (idx_fptr == NULL) {
         perror("Failed to create db.idx file");
@@ -60,7 +60,7 @@ int init(char* db_path) {
 
     FILE *obj_fptr;
     char obj_path[PATH_MAX];
-    snprintf(obj_path, sizeof(obj_path), "%s/db.obj", db_path);
+    snprintf(obj_path, sizeof(obj_path), "%s/db.obj", db_dir);
     obj_fptr = fopen(obj_path, "wb");
     if (obj_fptr == NULL) {
         perror("Failed to create db.obj file");

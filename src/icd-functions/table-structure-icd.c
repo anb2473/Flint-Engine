@@ -1,4 +1,6 @@
 #include "../../include/icds/table-structure-icd.h"
+#include <stdlib.h>
+#include <string.h>
 
 // Init function for TableStructure
 void table_structure_init(void *p) {

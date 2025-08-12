@@ -3,6 +3,7 @@
         "utarray.h": "c",
         "stdint.h": "c",
         "uthash.h": "c",
-        "db-index.h": "c"
+        "db-index.h": "c",
+        "tooling.h": "c"
     }
 }

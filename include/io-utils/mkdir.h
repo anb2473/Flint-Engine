@@ -10,7 +10,7 @@
 
 int mk_dir(const char* path) {
     #ifdef _WIN32
-        if (CreateDirectory((LPCWSTR) path, NULL) || GetLastError() == ERROR_ALREADY_EXISTS) {
+        if (CreateDirectoryA(path, NULL) || GetLastError() == ERROR_ALREADY_EXISTS) {
             return 0;
         } else {
             return 1;

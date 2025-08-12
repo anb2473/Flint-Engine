@@ -1,4 +1,7 @@
 #include "../../include/structs/attribute.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 AttributeType parse_attribute_type(const char* type_str) {
     if (strcmp(type_str, "int") == 0) {
@@ -45,4 +48,37 @@ AttributeValue parse_str_to_val(const char *input, AttributeType type) {
     }
 
     return attr;
+}
+
+AttributeValue* copy_attribute_value(const AttributeValue *value) {
+    AttributeValue *copy = malloc(sizeof(AttributeValue));
+    if (!copy) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+    
+    copy->type = value->type;
+    
+    switch (value->type) {
+        case TYPE_INT:
+            copy->value.i = value->value.i;
+            break;
+        case TYPE_FLOAT:
+            copy->value.f = value->value.f;
+            break;
+        case TYPE_STR:
+            copy->value.s = strdup(value->value.s);
+            if (!copy->value.s) {
+                perror("strdup");
+                free(copy);
+                exit(EXIT_FAILURE);
+            }
+            break;
+        default:
+            fprintf(stderr, "Unknown attribute type in copy\n");
+            free(copy);
+            exit(EXIT_FAILURE);
+    }
+    
+    return copy;
 }

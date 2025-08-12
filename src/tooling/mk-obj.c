@@ -17,6 +17,7 @@
 #include "../../include/structs/attribute.h"
 #include "../../include/structs/table-structure.h"
 #include "../../include/structs/obj-location.h"
+#include "../../include/states/attribute-type.h"
 
 // Include icds
 #include "../../include/icds/index-array-entry-icd.h"
@@ -51,7 +52,22 @@ int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, DataMa
         DataMap *item;
         HASH_FIND_STR(data, attr->name, item);
         if (item) {
-            obj_data = strcat(obj_data, item->data);
+            // Convert AttributeValue to string based on type
+            char temp_buffer[256];
+            switch (item->data->type) {
+                case TYPE_INT:
+                    sprintf(temp_buffer, "%d", item->data->value.i);
+                    break;
+                case TYPE_FLOAT:
+                    sprintf(temp_buffer, "%f", item->data->value.f);
+                    break;
+                case TYPE_STR:
+                    strcpy(temp_buffer, item->data->value.s);
+                    break;
+                default:
+                    strcpy(temp_buffer, "");
+            }
+            obj_data = strcat(obj_data, temp_buffer);
             if (i != attr_len - 1) {
                 // if not last attr, add a seperator
                 obj_data = strcat(obj_data, "\x01");
@@ -69,7 +85,10 @@ int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, DataMa
         }
     }
 
-    FILE* obj_file = fopen(strcat(db_path, "/db/db.obj"), "ab");
+    char obj_path[1024];
+    strcpy(obj_path, db_path);
+    strcat(obj_path, "/db/db.obj");
+    FILE* obj_file = fopen(obj_path, "ab");
     fwrite(obj_data, strlen(obj_data), 1, obj_file);
     
     // Get file length
@@ -79,7 +98,10 @@ int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, DataMa
     fclose(obj_file);
     free(obj_file);
 
-    FILE *idx_file = fopen(strcat(db_path, "/db/db.idx"), "ab");
+    char idx_path[1024];
+    strcpy(idx_path, db_path);
+    strcat(idx_path, "/db/db.idx");
+    FILE *idx_file = fopen(idx_path, "ab");
 
     // Number of items in the structure array + 1 is the id of the new object
     StructureObjectsArray *soa = (StructureObjectsArray *)utarray_eltptr(db_index->index_table_array, structure_id);
@@ -159,7 +181,7 @@ int mk_obj(const char *db_path, DBIndex *db_index, uint32_t structure_id, DataMa
                     target_new_size *= 2;
                 }
 
-                IndexArrayEntry empty_entry = {UINT32_MAX, UINT32_MAX};
+                IndexArrayEntry empty_entry = {UINT32_MAX, UINT16_MAX, UINT32_MAX};
                 for (size_t i = target_current_size; i < target_new_size; i++) {
                     utarray_push_back(target_soa->objects, &empty_entry);
                 }

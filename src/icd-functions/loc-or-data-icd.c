@@ -1,7 +1,8 @@
 #include "../../include/icds/loc-or-data-icd.h"
-#include "../../include/structs/index-array-entry.h"
+#include <stdlib.h>
+#include <string.h>
 
-static void loc_or_data_init(void *elt) {
+void loc_or_data_init(void *elt) {
     LocOrData *lod = (LocOrData *)elt;
     lod->type = TYPE_LOC;
     IndexArrayEntry* idx_entry = (IndexArrayEntry*) malloc(sizeof(IndexArrayEntry));
@@ -14,7 +15,7 @@ static void loc_or_data_init(void *elt) {
 }
 
 // Deep copy element
-static void loc_or_data_copy(void *dst, const void *src) {
+void loc_or_data_copy(void *dst, const void *src) {
     const LocOrData *s = (const LocOrData *)src;
     LocOrData *d = (LocOrData *)dst;
 
@@ -34,7 +35,7 @@ static void loc_or_data_copy(void *dst, const void *src) {
 }
 
 // Destroy element
-static void loc_or_data_dtor(void *elt) {
+void loc_or_data_dtor(void *elt) {
     LocOrData *lod = (LocOrData *)elt;
     if (lod->type == TYPE_MAP) {
         DataMap *curr, *tmp;

@@ -29,4 +29,6 @@ Attribute* alloc_attr();
 
 AttributeValue parse_str_to_val(const char *input, AttributeType type);
 
+AttributeValue* copy_attribute_value(const AttributeValue *value);
+
 #endif
