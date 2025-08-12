@@ -13,15 +13,4 @@ while ((Get-Item -Path .).Name -ne "Flint-Engine") {
 
 Write-Output "Successfully located Flint-Engine directory"
 
-$new_location = (Get-Location).Path
-$test_env = Join-Path $new_location 'test-env'
-
-$script_path = Join-Path $original_location 'test-init.ps1'
-if (Test-Path $script_path) {
-    Write-Output "Successfully located test-init.ps1 script"
-    & $script_path $test_env
-} else {
-    Write-Error "Cannot find test-init.ps1 at $script_path"
-}
-
-Set-Location $original_location
+Remove-Item -Path "testing/binaries/*.exe"
